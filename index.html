@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="T-Finance">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="App Icon.jpeg">
+<title>T-Finance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #00C805;
+  --red:   #FF5000;
+  --hold:  #555555;
+  --bg:    #000000;
+  --s1:    #111111;
+  --s2:    #1C1C1E;
+  --s3:    #2C2C2E;
+  --border:#1C1C1E;
+  --text:  #FFFFFF;
+  --text2: #8E8E93;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --nav-h: 49px;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
+
+/* ─── LOCK SCREEN ──────────────────────────────────────── */
+#lock {
+  position:fixed; inset:0; background:var(--bg); z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding-bottom:calc(var(--safe-bot) + 20px);
+  transition:opacity .3s ease;
+}
+#lock.out { opacity:0; pointer-events:none; }
+.lock-icon {
+  width:72px; height:72px; background:var(--green); border-radius:18px;
+  display:flex; align-items:center; justify-content:center; margin-bottom:28px;
+}
+.lock-icon svg { width:36px; height:36px; }
+.lock-h { font-size:26px; font-weight:700; margin-bottom:6px; }
+.lock-sub { font-size:14px; color:var(--text2); margin-bottom:44px; }
+.pin-dots { display:flex; gap:18px; margin-bottom:44px; }
+.dot { width:13px; height:13px; border-radius:50%; border:2px solid var(--text2); transition:all .12s ease; }
+.dot.on { background:var(--text); border-color:var(--text); }
+.dot.err { background:var(--red); border-color:var(--red); }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-8px)} 80%{transform:translateX(8px)} }
+.pin-dots.shake { animation:shake .4s ease; }
+.numpad { display:grid; grid-template-columns:repeat(3,78px); gap:14px; }
+.nk {
+  width:78px; height:78px; border-radius:50%; background:var(--s2); border:none;
+  color:var(--text); font-family:inherit; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; cursor:pointer;
+  transition:transform .08s ease, background .08s ease; user-select:none;
+}
+.nk:active { transform:scale(.91); background:var(--s3); }
+.nk.ghost { background:transparent; }
+.nk.ghost:active { background:rgba(255,255,255,.06); }
+.nk .d { font-size:27px; font-weight:400; line-height:1; }
+.nk .l { font-size:9px; letter-spacing:1.8px; color:var(--text2); margin-top:2px; }
+
+/* ─── APP SHELL ────────────────────────────────────────── */
+#app {
+  position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden;
+  visibility:hidden; opacity:0; transition:opacity .35s ease;
+}
+#app.show { visibility:visible; opacity:1; }
+
+/* scroll */
+.sv {
+  flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(var(--nav-h) + var(--safe-bot) + 20px);
+  scroll-behavior:smooth;
+}
+.sv::-webkit-scrollbar { display:none; }
+
+/* ─── HEADER ────────────────────────────────────────────── */
+.hdr {
+  padding:calc(var(--safe-top) + 52px) 20px 0;
+  background:var(--bg);
+}
+.hdr-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+.hdr-title { font-size:22px; font-weight:800; }
+.hdr-updated { font-size:12px; color:var(--text2); }
+.mkt-row { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text2); padding-bottom:14px; }
+.mkt-dot { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.mkt-dot.cl { background:var(--red); }
+
+/* ─── TIME TABS ─────────────────────────────────────────── */
+.tabs { display:flex; gap:2px; padding:0 16px 12px; background:var(--bg); }
+.tb {
+  flex:1; padding:6px 2px; border:none; background:transparent;
+  color:var(--text2); font-family:inherit; font-size:13px; font-weight:600;
+  cursor:pointer; border-radius:6px; transition:all .18s ease;
+}
+.tb.on { background:rgba(0,200,5,.15); color:var(--green); }
+
+/* ─── COUNTDOWN ─────────────────────────────────────────── */
+.cd-wrap {
+  margin:0 16px 12px; padding:12px 16px; background:var(--s2); border-radius:14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.cd-label { font-size:13px; color:var(--text2); }
+.cd-val { font-size:15px; font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; }
+
+/* ─── SIGNAL SUMMARY ────────────────────────────────────── */
+.sig-row { display:flex; gap:10px; padding:0 16px 14px; }
+.sig-pill {
+  flex:1; padding:10px 8px; border-radius:12px; background:var(--s2); text-align:center;
+}
+.sig-pill .sc { font-size:22px; font-weight:700; }
+.sig-pill .sl { font-size:11px; color:var(--text2); margin-top:2px; }
+.sig-pill.b .sc { color:var(--green); }
+.sig-pill.h .sc { color:var(--text2); }
+.sig-pill.s .sc { color:var(--red); }
+
+/* ─── SECTION HEADER ────────────────────────────────────── */
+.sec-hdr { font-size:20px; font-weight:700; padding:6px 16px 6px; }
+
+/* ─── STOCK LIST ─────────────────────────────────────────── */
+.slist { padding:0 16px; }
+.srow {
+  display:flex; align-items:center; padding:13px 0;
+  border-bottom:1px solid var(--border); cursor:pointer;
+  opacity:0; animation:fadeUp .32s ease forwards;
+  transition:opacity .15s;
+}
+.srow:last-child { border-bottom:none; }
+.srow:active { opacity:.55; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.si { flex:0 0 116px; }
+.si-ticker { font-size:16px; font-weight:700; }
+.si-name { font-size:13px; color:var(--text2); margin-top:2px; max-width:110px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.spark { flex:1; height:42px; padding:0 6px; }
+.spark svg { width:100%; height:100%; }
+.sbadge {
+  flex:0 0 auto; min-width:68px; padding:9px 12px; border-radius:100px;
+  font-size:14px; font-weight:700; text-align:center;
+}
+.sbadge.buy { background:var(--green); color:#000; }
+.sbadge.sell { background:var(--red); color:#fff; }
+.sbadge.hold { background:var(--s3); color:var(--text2); }
+
+/* ─── BOTTOM NAV ─────────────────────────────────────────── */
+.bnav {
+  position:fixed; bottom:0; left:0; right:0;
+  height:calc(var(--nav-h) + var(--safe-bot));
+  background:rgba(0,0,0,.88); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);
+  display:flex; align-items:flex-start; padding-top:8px; z-index:100;
+}
+.ni {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+  cursor:pointer; padding:2px 0; transition:opacity .15s;
+}
+.ni:active { opacity:.5; }
+.ni-label { font-size:10px; color:var(--text2); }
+.ni.on .ni-label { color:var(--green); }
+.ni.on svg * { stroke:var(--green) !important; }
+
+/* ─── DETAIL OVERLAY ─────────────────────────────────────── */
+#detail {
+  position:fixed; inset:0; background:var(--bg); z-index:500;
+  transform:translateY(100%); transition:transform .4s cubic-bezier(.32,.72,0,1);
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(var(--nav-h) + var(--safe-bot) + 20px);
+}
+#detail.open { transform:translateY(0); }
+#detail::-webkit-scrollbar { display:none; }
+
+.dh {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:calc(var(--safe-top) + 52px) 20px 12px;
+}
+.d-back {
+  width:36px; height:36px; border-radius:50%; background:var(--s2);
+  border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  color:var(--text); transition:background .12s;
+}
+.d-back:active { background:var(--s3); }
+.d-ticker { font-size:14px; color:var(--text2); font-weight:600; }
+.d-name  { font-size:30px; font-weight:800; padding:0 20px 2px; }
+.d-price { font-size:30px; font-weight:700; padding:0 20px 4px; }
+.d-chg   { display:flex; align-items:center; gap:8px; padding:0 20px 18px; font-size:15px; font-weight:500; }
+.d-chart { width:100%; height:160px; }
+.d-chart svg { width:100%; height:100%; }
+
+.dtabs { display:flex; padding:8px 16px 20px; gap:2px; }
+
+.sig-blk {
+  margin:0 16px 14px; padding:18px; background:var(--s2); border-radius:16px;
+}
+.sig-blk-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.sig-blk-lbl { font-size:12px; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.6px; }
+.sbadge-lg { padding:8px 20px; border-radius:100px; font-size:14px; font-weight:700; }
+.sbadge-lg.buy { background:var(--green); color:#000; }
+.sbadge-lg.sell { background:var(--red); color:#fff; }
+.sbadge-lg.hold { background:var(--s3); color:var(--text2); }
+
+.conf-lbl { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:6px; }
+.conf-track { height:4px; background:var(--s3); border-radius:2px; overflow:hidden; margin-bottom:14px; }
+.conf-fill  { height:100%; border-radius:2px; width:0; transition:width .9s cubic-bezier(.4,0,.2,1); }
+.reason { font-size:14px; color:var(--text2); line-height:1.6; }
+
+.tgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:0 16px 14px; }
+.tcard { background:var(--s2); border-radius:16px; padding:16px; }
+.tcard-lbl { font-size:12px; color:var(--text2); margin-bottom:6px; }
+.tcard-val { font-size:22px; font-weight:700; }
+.tcard-val.pos { color:var(--green); }
+.tcard-val.neg { color:var(--red); }
+
+/* skeleton loader */
+.skel { background:var(--s2); border-radius:8px; }
+@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+.loading .skel { animation:pulse 1.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<!-- ─── LOCK SCREEN ──────────────────────────────────────── -->
+<div id="lock">
+  <div class="lock-icon">
+    <svg viewBox="0 0 24 24" fill="black"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+  </div>
+  <div class="lock-h">T-Finance</div>
+  <div class="lock-sub">Enter your PIN</div>
+  <div class="pin-dots" id="pinDots">
+    <div class="dot" id="d0"></div><div class="dot" id="d1"></div>
+    <div class="dot" id="d2"></div><div class="dot" id="d3"></div>
+  </div>
+  <div class="numpad">
+    <button class="nk" onclick="pk('1')"><span class="d">1</span></button>
+    <button class="nk" onclick="pk('2')"><span class="d">2</span><span class="l">ABC</span></button>
+    <button class="nk" onclick="pk('3')"><span class="d">3</span><span class="l">DEF</span></button>
+    <button class="nk" onclick="pk('4')"><span class="d">4</span><span class="l">GHI</span></button>
+    <button class="nk" onclick="pk('5')"><span class="d">5</span><span class="l">JKL</span></button>
+    <button class="nk" onclick="pk('6')"><span class="d">6</span><span class="l">MNO</span></button>
+    <button class="nk" onclick="pk('7')"><span class="d">7</span><span class="l">PQRS</span></button>
+    <button class="nk" onclick="pk('8')"><span class="d">8</span><span class="l">TUV</span></button>
+    <button class="nk" onclick="pk('9')"><span class="d">9</span><span class="l">WXYZ</span></button>
+    <button class="nk ghost"></button>
+    <button class="nk" onclick="pk('0')"><span class="d">0</span></button>
+    <button class="nk ghost" onclick="pdel()">
+      <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- ─── APP ──────────────────────────────────────────────── -->
+<div id="app">
+  <div class="sv" id="sv">
+
+    <div class="hdr">
+      <div class="hdr-row">
+        <span class="hdr-title">Stocks</span>
+        <span class="hdr-updated" id="lastUpd">Loading…</span>
+      </div>
+      <div class="mkt-row"><div class="mkt-dot" id="mktDot"></div><span id="mktTxt">Checking market…</span></div>
+    </div>
+
+    <div class="tabs" id="mainTabs">
+      <button class="tb on" data-p="1D">1D</button>
+      <button class="tb" data-p="1W">1W</button>
+      <button class="tb" data-p="1M">1M</button>
+      <button class="tb" data-p="3M">3M</button>
+      <button class="tb" data-p="1Y">1Y</button>
+      <button class="tb" data-p="ALL">ALL</button>
+    </div>
+
+    <div class="cd-wrap">
+      <span class="cd-label">Next signal update</span>
+      <span class="cd-val" id="cdVal">—</span>
+    </div>
+
+    <div class="sig-row">
+      <div class="sig-pill b"><div class="sc" id="nBuy">—</div><div class="sl">BUY</div></div>
+      <div class="sig-pill h"><div class="sc" id="nHold">—</div><div class="sl">HOLD</div></div>
+      <div class="sig-pill s"><div class="sc" id="nSell">—</div><div class="sl">SELL</div></div>
+    </div>
+
+    <div class="sec-hdr">Watchlist</div>
+    <div class="slist" id="slist"></div>
+
+  </div>
+
+  <nav class="bnav">
+    <div class="ni on">
+      <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="ni-label">Stocks</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="ni-label">Search</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      <span class="ni-label">News</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="ni-label">Account</span>
+    </div>
+  </nav>
+</div>
+
+<!-- ─── DETAIL ────────────────────────────────────────────── -->
+<div id="detail">
+  <div class="dh">
+    <button class="d-back" onclick="closeDetail()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="d-ticker" id="dTicker"></span>
+    <div style="width:36px"></div>
+  </div>
+  <div class="d-name"  id="dName"></div>
+  <div class="d-price" id="dPrice"></div>
+  <div class="d-chg"   id="dChg"></div>
+  <div class="d-chart" id="dChart"></div>
+  <div class="dtabs" id="detailTabs">
+    <button class="tb on" data-p="1D">1D</button>
+    <button class="tb" data-p="1W">1W</button>
+    <button class="tb" data-p="1M">1M</button>
+    <button class="tb" data-p="3M">3M</button>
+    <button class="tb" data-p="1Y">1Y</button>
+    <button class="tb" data-p="ALL">ALL</button>
+  </div>
+  <div class="sig-blk">
+    <div class="sig-blk-hdr">
+      <span class="sig-blk-lbl">Signal</span>
+      <span class="sbadge-lg" id="dSigBadge"></span>
+    </div>
+    <div class="conf-lbl"><span>Confidence</span><span id="dConfPct"></span></div>
+    <div class="conf-track"><div class="conf-fill" id="dConfFill"></div></div>
+    <div class="reason" id="dReason"></div>
+  </div>
+  <div class="tgrid">
+    <div class="tcard"><div class="tcard-lbl">10-Day Trend</div><div class="tcard-val" id="dT10"></div></div>
+    <div class="tcard"><div class="tcard-lbl">100-Day Trend</div><div class="tcard-val" id="dT100"></div></div>
+  </div>
+
+  <nav class="bnav" style="position:sticky; bottom:0;">
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="ni-label">Stocks</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="ni-label">Search</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      <span class="ni-label">News</span>
+    </div>
+    <div class="ni">
+      <svg width="22" height="22" fill="none" stroke="#8E8E93" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="ni-label">Account</span>
+    </div>
+  </nav>
+</div>
+
+<script>
+// ─── PIN ─────────────────────────────────────────────────
+// Default PIN: 1234  (SHA-256 hash)
+// Change PIN: in browser console run →
+//   hashStr('YOUR_NEW_PIN').then(h => console.log(h))
+// then paste result as PIN_HASH below
+const PIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+
+let pin = '';
+
+async function hashStr(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+window.pk = function(n) {
+  if (pin.length >= 4) return;
+  pin += n;
+  syncDots();
+  if (pin.length === 4) verifyPin();
+};
+
+window.pdel = function() {
+  pin = pin.slice(0,-1);
+  syncDots();
+};
+
+function syncDots() {
+  for (let i=0;i<4;i++) {
+    document.getElementById('d'+i).className = 'dot' + (i < pin.length ? ' on' : '');
+  }
+}
+
+async function verifyPin() {
+  const h = await hashStr(pin);
+  if (h === PIN_HASH) {
+    sessionStorage.setItem('tf_ok','1');
+    const lock = document.getElementById('lock');
+    lock.classList.add('out');
+    setTimeout(() => { lock.style.display='none'; showApp(); }, 320);
+  } else {
+    const pd = document.getElementById('pinDots');
+    document.querySelectorAll('.dot').forEach(d => { d.className='dot err'; });
+    pd.classList.add('shake');
+    setTimeout(() => {
+      pd.classList.remove('shake');
+      pin = '';
+      syncDots();
+    }, 600);
+  }
+}
+
+// ─── BOOT ────────────────────────────────────────────────
+if (sessionStorage.getItem('tf_ok') === '1') {
+  document.getElementById('lock').style.display = 'none';
+  showApp();
+}
+
+function showApp() {
+  const app = document.getElementById('app');
+  app.classList.add('show');
+  init();
+}
+
+// ─── STATE ───────────────────────────────────────────────
+let stocks = [];
+let activePeriod = '1D';
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  loadData();
+  startClock();
+  checkMarket();
+  setInterval(checkMarket, 60000);
+  wireTabs(document.getElementById('mainTabs'));
+  wireTabs(document.getElementById('detailTabs'));
+}
+
+// ─── DATA ─────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const r = await fetch('data.json?t=' + Date.now());
+    const j = await r.json();
+    stocks = j.stocks;
+    const d = new Date(j.updated);
+    document.getElementById('lastUpd').textContent =
+      d.toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  } catch(_) {
+    stocks = MOCK;
+    document.getElementById('lastUpd').textContent = 'Demo data';
+  }
+  renderList();
+  renderSummary();
+}
+
+// ─── RENDER LIST ──────────────────────────────────────────
+function renderSummary() {
+  document.getElementById('nBuy').textContent  = stocks.filter(s=>s.signal==='BUY').length;
+  document.getElementById('nHold').textContent = stocks.filter(s=>s.signal==='HOLD').length;
+  document.getElementById('nSell').textContent = stocks.filter(s=>s.signal==='SELL').length;
+}
+
+function renderList() {
+  const order = {BUY:0,HOLD:1,SELL:2};
+  const sorted = [...stocks].sort((a,b) =>
+    (order[a.signal]-order[b.signal]) || b.confidence-a.confidence
+  );
+  document.getElementById('slist').innerHTML = sorted.map((s,i) => `
+    <div class="srow" style="animation-delay:${i*35}ms" onclick="openDetail('${s.symbol}')">
+      <div class="si">
+        <div class="si-ticker">${s.symbol}</div>
+        <div class="si-name">${s.name}</div>
+      </div>
+      <div class="spark">${mkSpark(s.sparkline, s.signal)}</div>
+      <div class="sbadge ${s.signal.toLowerCase()}">${s.signal}</div>
+    </div>
+  `).join('');
+}
+
+// ─── SPARKLINE ────────────────────────────────────────────
+function mkSpark(pts, sig) {
+  if (!pts||pts.length<2) return '';
+  const W=100, H=42, pad=3;
+  const mn=Math.min(...pts), mx=Math.max(...pts), rng=mx-mn||1;
+  const xy = pts.map((v,i)=>[
+    (i/(pts.length-1))*W,
+    H-pad-((v-mn)/rng)*(H-pad*2)
+  ]);
+  const path = 'M'+xy.map(p=>p.join(',')).join('L');
+  const fill = path+`L${W},${H}L0,${H}Z`;
+  const col = sig==='BUY'?'#00C805':sig==='SELL'?'#FF5000':'#555';
+  const gid = 'g'+Math.random().toString(36).slice(2,8);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity=".3"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fill}" fill="url(#${gid})"/>
+    <path d="${path}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function mkBigChart(pts, sig) {
+  if (!pts||pts.length<2) return '';
+  const W=400, H=160, pad=8;
+  const mn=Math.min(...pts), mx=Math.max(...pts), rng=mx-mn||1;
+  const xy = pts.map((v,i)=>[
+    (i/(pts.length-1))*W,
+    H-pad-((v-mn)/rng)*(H-pad*2)
+  ]);
+  // smooth bezier
+  let path=`M${xy[0][0]},${xy[0][1]}`;
+  for(let i=1;i<xy.length;i++){
+    const cx=(xy[i-1][0]+xy[i][0])/2;
+    path+=` C${cx},${xy[i-1][1]} ${cx},${xy[i][1]} ${xy[i][0]},${xy[i][1]}`;
+  }
+  const fill=path+`L${W},${H}L0,${H}Z`;
+  const col = sig==='BUY'?'#00C805':sig==='SELL'?'#FF5000':'#555';
+  const last = xy[xy.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="overflow:visible">
+    <defs>
+      <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${col}" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${fill}" fill="url(#bg2)"/>
+    <path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      style="stroke-dasharray:2000;stroke-dashoffset:2000;animation:dl .9s ease forwards"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="4.5" fill="${col}"
+      style="opacity:0;animation:dp .25s ease .85s forwards;transform-origin:${last[0]}px ${last[1]}px"/>
+    <style>
+      @keyframes dl{to{stroke-dashoffset:0}}
+      @keyframes dp{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+    </style>
+  </svg>`;
+}
+
+// ─── DETAIL ───────────────────────────────────────────────
+function openDetail(sym) {
+  const s = stocks.find(x=>x.symbol===sym);
+  if (!s) return;
+  const pos = s.changePct >= 0;
+  const col = s.signal==='BUY'?'var(--green)':s.signal==='SELL'?'var(--red)':'var(--text2)';
+
+  document.getElementById('dTicker').textContent  = s.symbol;
+  document.getElementById('dName').textContent    = s.name;
+  document.getElementById('dPrice').textContent   = `$${s.price.toFixed(2)}`;
+  document.getElementById('dChg').innerHTML = `
+    <span style="color:${pos?'var(--green)':'var(--red)'}">
+      ${pos?'▲':'▼'} $${Math.abs(s.change).toFixed(2)} (${pos?'+':''}${s.changePct.toFixed(2)}%)
+    </span>
+    <span style="color:var(--text2)">Today</span>`;
+  document.getElementById('dChart').innerHTML = mkBigChart(s.sparkline, s.signal);
+
+  const badge = document.getElementById('dSigBadge');
+  badge.textContent = s.signal;
+  badge.className = `sbadge-lg ${s.signal.toLowerCase()}`;
+
+  const pct = Math.round(s.confidence*100);
+  document.getElementById('dConfPct').textContent = pct+'%';
+  const fill = document.getElementById('dConfFill');
+  fill.style.width='0'; fill.style.background=col;
+  setTimeout(()=>{ fill.style.width=pct+'%'; }, 60);
+
+  document.getElementById('dReason').textContent = s.reason;
+
+  const fmt = v => (v>=0?'+':'')+v.toFixed(2)+'%';
+  document.getElementById('dT10').textContent  = fmt(s.trend10d);
+  document.getElementById('dT10').className    = 'tcard-val '+(s.trend10d>=0?'pos':'neg');
+  document.getElementById('dT100').textContent = fmt(s.trend100d);
+  document.getElementById('dT100').className   = 'tcard-val '+(s.trend100d>=0?'pos':'neg');
+
+  document.getElementById('detail').classList.add('open');
+  document.getElementById('sv').style.overflow = 'hidden';
+}
+
+window.closeDetail = function() {
+  document.getElementById('detail').classList.remove('open');
+  document.getElementById('sv').style.overflow = '';
+};
+
+// ─── TABS ─────────────────────────────────────────────────
+function wireTabs(wrap) {
+  wrap.querySelectorAll('.tb').forEach(btn => {
+    btn.addEventListener('click', function() {
+      wrap.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
+      this.classList.add('on');
+      activePeriod = this.dataset.p;
+    });
+  });
+}
+
+// ─── MARKET + CLOCK ───────────────────────────────────────
+function etNow() {
+  return new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+}
+
+function checkMarket() {
+  const et = etNow();
+  const d=et.getDay(), h=et.getHours(), m=et.getMinutes();
+  const open = d>=1&&d<=5&&(h>9||(h===9&&m>=30))&&h<16;
+  document.getElementById('mktDot').className = 'mkt-dot'+(open?'':' cl');
+  document.getElementById('mktTxt').textContent = open ? 'Market open · NYSE' : 'Market closed · NYSE';
+}
+
+function startClock() {
+  function tick() {
+    const et = etNow();
+    let target = new Date(et);
+    target.setHours(9,30,0,0);
+    if (et>=target||et.getDay()===0||et.getDay()===6) {
+      target.setDate(target.getDate()+1);
+      while(target.getDay()===0||target.getDay()===6) target.setDate(target.getDate()+1);
+      target.setHours(9,30,0,0);
+    }
+    const ms = target-et;
+    const h=Math.floor(ms/3600000), min=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
+    document.getElementById('cdVal').textContent = h>0?`${h}h ${min}m`:`${min}m ${s}s`;
+  }
+  tick();
+  setInterval(tick,1000);
+}
+
+// ─── SERVICE WORKER ───────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+// ─── MOCK DATA ────────────────────────────────────────────
+const MOCK = [
+  { symbol:'AAPL', name:'Apple Inc.',      price:211.45, change:3.21,  changePct:1.54,  signal:'BUY',  confidence:.78, trend10d:3.4,  trend100d:8.2,
+    reason:'Strong momentum on both 10-day and 100-day EMAs. Earnings beat driving sustained buying pressure across institutions.',
+    sparkline:[204.1,205.5,204.8,206.2,207.0,206.5,208.3,209.1,210.0,211.45] },
+  { symbol:'MSFT', name:'Microsoft',       price:421.30, change:5.80,  changePct:1.40,  signal:'BUY',  confidence:.82, trend10d:4.1,  trend100d:12.3,
+    reason:'Azure growth acceleration and AI Copilot integration driving double-digit trend across all timeframes.',
+    sparkline:[408.0,410.2,409.5,412.1,414.0,413.2,415.8,417.1,419.5,421.30] },
+  { symbol:'NVDA', name:'NVIDIA Corp.',    price:894.50, change:18.30, changePct:2.09,  signal:'BUY',  confidence:.85, trend10d:6.2,  trend100d:45.1,
+    reason:'AI chip demand remains structural. Both short and long-term EMAs confirm strong uptrend continuation.',
+    sparkline:[852.0,858.5,855.2,863.1,868.0,865.5,874.3,879.1,888.0,894.50] },
+  { symbol:'JPM',  name:'JPMorgan Chase',  price:196.80, change:1.20,  changePct:0.61,  signal:'BUY',  confidence:.71, trend10d:2.1,  trend100d:9.4,
+    reason:'Banking sector rotation underway. Rate environment favorable. EMA crossover confirmed bullish.',
+    sparkline:[191.0,192.5,193.1,193.8,194.5,194.2,195.1,195.8,196.3,196.80] },
+  { symbol:'WMT',  name:'Walmart',         price:67.80,  change:0.85,  changePct:1.27,  signal:'BUY',  confidence:.68, trend10d:2.8,  trend100d:5.1,
+    reason:'Defensive retail holding strong. Consumer staples rotation supporting momentum into the quarter.',
+    sparkline:[65.5,65.9,66.2,66.5,66.8,67.0,67.2,67.4,67.6,67.80] },
+  { symbol:'UNH',  name:'UnitedHealth',    price:491.20, change:4.50,  changePct:0.92,  signal:'BUY',  confidence:.73, trend10d:3.1,  trend100d:11.2,
+    reason:'Healthcare demand secular trend intact. EMA momentum building after recent consolidation breakout.',
+    sparkline:[476.0,478.5,480.2,481.8,483.5,484.2,486.0,487.5,489.8,491.20] },
+  { symbol:'GOOGL', name:'Alphabet',       price:171.20, change:-2.10, changePct:-1.21, signal:'HOLD', confidence:.54, trend10d:-1.2, trend100d:4.5,
+    reason:'Long-term trend healthy but recent 10-day weakness signals consolidation. Hold and monitor for resolution.',
+    sparkline:[175.5,174.8,173.2,174.1,172.8,171.5,172.3,173.0,172.1,171.20] },
+  { symbol:'AMZN', name:'Amazon',          price:185.90, change:0.45,  changePct:0.24,  signal:'HOLD', confidence:.51, trend10d:0.8,  trend100d:6.2,
+    reason:'Sideways price action on the 10-day. 100-day trend positive but momentum stalling near resistance.',
+    sparkline:[184.0,183.5,184.8,185.2,184.7,185.1,184.9,185.5,185.8,185.90] },
+  { symbol:'V',    name:'Visa Inc.',       price:278.50, change:-0.90, changePct:-0.32, signal:'HOLD', confidence:.56, trend10d:0.4,  trend100d:7.8,
+    reason:'Payment volume growth stable. Near-term consolidation expected before the next leg higher.',
+    sparkline:[277.0,278.2,277.8,278.5,279.1,278.8,279.0,278.9,278.7,278.50] },
+  { symbol:'PG',   name:'Procter & Gamble',price:162.40, change:-0.60, changePct:-0.37, signal:'HOLD', confidence:.50, trend10d:-0.5, trend100d:3.2,
+    reason:'Flat near-term momentum. Long-term trend intact but not enough signal strength to act on either side.',
+    sparkline:[163.5,163.2,162.8,163.1,162.9,163.0,162.7,162.5,162.4,162.40] },
+  { symbol:'HD',   name:'Home Depot',      price:338.90, change:2.80,  changePct:0.83,  signal:'HOLD', confidence:.58, trend10d:1.4,  trend100d:4.8,
+    reason:'Housing uncertainty keeping signal mixed despite a positive EMA cross on the short timeframe.',
+    sparkline:[333.0,334.5,335.2,335.8,336.5,337.0,337.5,338.0,338.5,338.90] },
+  { symbol:'MA',   name:'Mastercard',      price:462.70, change:-1.20, changePct:-0.26, signal:'HOLD', confidence:.53, trend10d:0.2,  trend100d:9.1,
+    reason:'Strong long-term trend but near-term noise. Wait for a cleaner 10-day signal before entry.',
+    sparkline:[463.5,462.8,463.2,463.0,462.5,462.8,463.1,462.9,462.8,462.70] },
+  { symbol:'TSLA', name:'Tesla Inc.',      price:178.40, change:-5.60, changePct:-3.04, signal:'SELL', confidence:.28, trend10d:-4.1, trend100d:-8.3,
+    reason:'Both EMAs declining. Momentum loss accelerating. Delivery miss triggering sustained institutional selling.',
+    sparkline:[192.5,190.2,188.8,187.1,185.0,183.5,182.2,181.0,179.5,178.40] },
+  { symbol:'JNJ',  name:'Johnson & Johnson',price:148.30,change:-3.40, changePct:-2.24, signal:'SELL', confidence:.31, trend10d:-3.2, trend100d:-1.8,
+    reason:'Both EMAs in decline. Litigation uncertainty adding persistent downward pressure on near-term price.',
+    sparkline:[155.0,153.8,152.5,151.2,150.8,150.1,149.5,149.0,148.8,148.30] },
+  { symbol:'DIS',  name:'Walt Disney',     price:89.50,  change:-4.20, changePct:-4.48, signal:'SELL', confidence:.22, trend10d:-5.8, trend100d:-12.4,
+    reason:'Sustained weakness across both EMAs. Streaming concerns compounding macro headwinds. Exit position.',
+    sparkline:[98.0,96.5,95.2,94.0,93.5,92.8,92.0,91.2,90.1,89.50] }
+];
+</script>
+</body>
+</html>
