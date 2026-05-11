@@ -16,6 +16,12 @@ import math
 import urllib.request
 import urllib.parse
 
+# Core (S&P 500) — uses Faber 200-day SMA rule only
+CORE = [
+    ("VOO", "Vanguard S&P 500 ETF"),
+]
+
+# Tactical watchlist — uses multi-factor EMA+RSI+MACD scoring
 STOCKS = [
     ("AAPL",  "Apple Inc."),
     ("MSFT",  "Microsoft"),
@@ -34,9 +40,7 @@ STOCKS = [
     ("DIS",   "Walt Disney"),
 ]
 
-# Portfolio allocation targets (% of tactical allocation)
-# These get overridden by signal strength — shown as "up to X%"
-MAX_POSITION_PCT = 10  # no single stock > 10% of tactical allocation
+MAX_POSITION_PCT = 10  # no single tactical stock > 10% of tactical allocation
 
 
 def fetch_prices(symbol, days=220):
@@ -187,6 +191,81 @@ def make_reason(signal, ema10, ema50, ema200, rsi_val, macd_val):
     return ". ".join(p.capitalize() for p in parts) + "."
 
 
+def process_voo(symbol, name):
+    """
+    Faber 200-day SMA rule for the S&P 500 core position.
+    Rule: hold when price > 200-day SMA. Sell (move to cash) when price closes below it.
+    Buy back when price recovers above the 200-day SMA.
+    This is the single most well-researched market timing signal in existence.
+    Source: Faber (2007) "A Quantitative Approach to Tactical Asset Allocation"
+    """
+    try:
+        closes, meta = fetch_prices(symbol, days=420)  # need 400 days for clean 200-day SMA
+        if len(closes) < 50:
+            raise ValueError("Insufficient data")
+
+        cur   = closes[-1]
+        prev  = closes[-2]
+        change     = cur - prev
+        change_pct = (change / prev) * 100
+
+        sma200_val = sma(closes, min(200, len(closes)))
+        sma50_val  = sma(closes, min(50,  len(closes)))
+        rsi_val    = rsi(closes)
+        pct_above  = (cur - sma200_val) / sma200_val * 100
+
+        # Signal logic
+        if cur > sma200_val:
+            if cur > sma50_val:
+                signal     = "HOLD"
+                confidence = 0.88
+                action     = f"Hold your VOO position. Price is {pct_above:.1f}% above the 200-day SMA (${sma200_val:.2f})."
+                reason     = (f"Faber 200-day SMA signal intact. Price ${cur:.2f} is above the 200-day moving average "
+                              f"(${sma200_val:.2f}). No reason to exit. Only sell if price closes a full week below ${sma200_val:.2f}.")
+            else:
+                signal     = "HOLD"
+                confidence = 0.70
+                action     = f"Hold VOO but watch closely. Price near the 200-day SMA (${sma200_val:.2f})."
+                reason     = (f"Price above 200-day SMA but below 50-day SMA. RSI {rsi_val:.0f}. "
+                              f"The core Faber signal is still HOLD but momentum is weakening. Monitor weekly.")
+        else:
+            pct_below = abs(pct_above)
+            signal     = "SELL"
+            confidence = min(0.70 + pct_below * 0.03, 0.95)
+            action     = (f"SELL your VOO/SPY position. Price has crossed below the 200-day SMA (${sma200_val:.2f}). "
+                          f"Move proceeds to cash or SGOV (short-term T-bills). Buy back when price recovers above ${sma200_val:.2f}.")
+            reason     = (f"Faber 200-day SMA signal triggered. Price ${cur:.2f} is {pct_below:.1f}% below the 200-day SMA. "
+                          f"Historically this signal has prevented the worst drawdowns (2008: -50%, 2020: -34%). "
+                          f"This does NOT mean the market is crashing — it means the risk/reward has shifted against holding.")
+
+        def trend(n):
+            if len(closes) < n + 1:
+                return 0
+            return ((closes[-1] - closes[-(n+1)]) / closes[-(n+1)]) * 100
+
+        sparkline = [round(p, 2) for p in closes[-20:]]
+
+        return {
+            "symbol":     symbol,
+            "name":       name,
+            "price":      round(cur, 2),
+            "change":     round(change, 2),
+            "changePct":  round(change_pct, 2),
+            "signal":     signal,
+            "confidence": round(confidence, 2),
+            "trend10d":   round(trend(10), 2),
+            "trend100d":  round(trend(100), 2),
+            "action":     action,
+            "reason":     reason,
+            "sparkline":  sparkline,
+            "core":       True,
+            "sma200":     round(sma200_val, 2),
+        }
+    except Exception as e:
+        print(f"  ERROR {symbol}: {e}")
+        return None
+
+
 def process_stock(symbol, name):
     try:
         closes, meta = fetch_prices(symbol)
@@ -239,6 +318,15 @@ def process_stock(symbol, name):
 def main():
     print(f"T-Finance signal update — {datetime.datetime.now().isoformat()}")
     results = []
+
+    print("\n── Core positions (Faber 200-day SMA) ──")
+    for symbol, name in CORE:
+        print(f"  Processing {symbol}…")
+        result = process_voo(symbol, name)
+        if result:
+            results.append(result)
+
+    print("\n── Tactical watchlist (EMA + RSI + MACD) ──")
     for symbol, name in STOCKS:
         print(f"  Processing {symbol}…")
         result = process_stock(symbol, name)

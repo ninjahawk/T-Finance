@@ -319,6 +319,8 @@ select.mf-input option{background:var(--s1);}
         <div class="sp s"><div class="sc" id="nSell">—</div><div class="sl">SELL</div></div>
       </div>
 
+      <div class="sh">Core Position</div>
+      <div class="slist" id="coreList"></div>
       <div class="sh">Watchlist</div>
       <div class="slist" id="slist"></div>
     </div>
@@ -543,17 +545,20 @@ function renderSummary() {
 }
 
 function renderList(list) {
-  const data=(list||stocks).slice().sort((a,b)=>({BUY:0,HOLD:1,SELL:2}[a.signal]-{BUY:0,HOLD:1,SELL:2}[b.signal])||b.confidence-a.confidence);
-  document.getElementById('slist').innerHTML = data.map((s,i)=>rowHTML(s,i)).join('');
+  const all = list || stocks;
+  const core    = all.filter(s => s.core);
+  const tactical = all.filter(s => !s.core).sort((a,b)=>({BUY:0,HOLD:1,SELL:2}[a.signal]-{BUY:0,HOLD:1,SELL:2}[b.signal])||b.confidence-a.confidence);
+  document.getElementById('coreList').innerHTML = core.map((s,i)=>rowHTML(s,i,true)).join('');
+  document.getElementById('slist').innerHTML    = tactical.map((s,i)=>rowHTML(s,i,false)).join('');
 }
 
-function rowHTML(s,i) {
-  const recCls = s.signal==='BUY'?'':'hold';
+function rowHTML(s,i,isCore) {
+  const coreChip = isCore ? '<span style="font-size:9px;font-weight:700;letter-spacing:.8px;color:#000;background:var(--green);padding:2px 6px;border-radius:4px;margin-left:6px;">CORE</span>' : '';
   return `<div class="srow" style="animation-delay:${i*30}ms" onclick="openDetail('${s.symbol}')">
     <div class="si">
-      <div class="si-t">${s.symbol}</div>
+      <div class="si-t">${s.symbol}${coreChip}</div>
       <div class="si-n">${s.name}</div>
-      <div class="si-rec ${s.signal.toLowerCase()}">${s.action||''}</div>
+      <div class="si-rec ${s.signal.toLowerCase()}">${s.action ? s.action.split('.')[0] : ''}</div>
     </div>
     <div class="spark">${mkSpark(s.sparkline,s.signal)}</div>
     <div class="badge ${s.signal.toLowerCase()}">${s.signal}</div>
@@ -869,6 +874,7 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catc
 
 // ── MOCK DATA ─────────────────────────────────────────────
 const MOCK=[
+  {symbol:'VOO',name:'Vanguard S&P 500 ETF',price:485.20,change:1.85,changePct:0.38,signal:'HOLD',confidence:.88,trend10d:1.2,trend100d:12.4,core:true,sma200:448.10,action:'Hold your VOO position. Price is 8.3% above the 200-day SMA ($448.10).',reason:'Faber 200-day SMA signal intact. Price is above the 200-day moving average. No reason to exit. Only sell if price closes a full week below $448.10.',sparkline:[471.0,473.5,472.8,475.2,477.0,476.5,479.3,481.1,483.0,485.20]},
   {symbol:'AAPL',name:'Apple Inc.',price:211.45,change:3.21,changePct:1.54,signal:'BUY',confidence:.78,trend10d:3.4,trend100d:8.2,action:'Buy up to 8% of portfolio',reason:'Strong momentum on both 10-day and 100-day EMAs. Earnings beat driving sustained buying pressure across institutions.',sparkline:[204.1,205.5,204.8,206.2,207.0,206.5,208.3,209.1,210.0,211.45]},
   {symbol:'MSFT',name:'Microsoft',price:421.30,change:5.80,changePct:1.40,signal:'BUY',confidence:.82,trend10d:4.1,trend100d:12.3,action:'Buy up to 10% of portfolio',reason:'Azure growth acceleration and AI Copilot integration driving double-digit trend across all timeframes.',sparkline:[408.0,410.2,409.5,412.1,414.0,413.2,415.8,417.1,419.5,421.30]},
   {symbol:'NVDA',name:'NVIDIA Corp.',price:894.50,change:18.30,changePct:2.09,signal:'BUY',confidence:.85,trend10d:6.2,trend100d:45.1,action:'Buy up to 10% of portfolio',reason:'AI chip demand remains structural. Both short and long-term EMAs confirm strong uptrend continuation.',sparkline:[852.0,858.5,855.2,863.1,868.0,865.5,874.3,879.1,888.0,894.50]},
