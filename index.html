@@ -50,7 +50,7 @@ input{user-select:text;-webkit-user-select:text;}
 #app.show{visibility:visible;opacity:1;}
 
 /* ── SCREENS ──────────────────────────────────────────── */
-.sv{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav)+var(--sb)+16px);}
+.sv{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav) + max(var(--sb),34px) + 32px);}
 .sv::-webkit-scrollbar{display:none;}
 .screen{display:none;}
 .screen.on{display:block;}
@@ -58,29 +58,29 @@ input{user-select:text;-webkit-user-select:text;}
 /* ── UPDATE BANNER ────────────────────────────────────── */
 #upd-banner{display:none;background:var(--green);color:#000;text-align:center;padding:10px;font-size:13px;font-weight:700;cursor:pointer;position:sticky;top:0;z-index:50;}
 
-/* ── PORTFOLIO CARD ───────────────────────────────────── */
-.port-card{margin:calc(var(--st)+52px) 16px 0;background:var(--s2);border-radius:18px;padding:18px;}
-.port-row{display:flex;align-items:flex-start;justify-content:space-between;}
-.port-label{font-size:12px;color:var(--text2);margin-bottom:4px;}
-.port-value{font-size:26px;font-weight:800;}
-.port-pnl{text-align:right;}
-.port-pnl-val{font-size:18px;font-weight:700;}
+/* ── PORTFOLIO HEADER (flush, no card) ────────────────── */
+.port-card{padding:calc(var(--st)+52px) 20px 0;background:transparent;}
+.port-label{font-size:13px;color:var(--text2);margin-bottom:6px;}
+.port-row{display:flex;align-items:flex-end;justify-content:space-between;}
+.port-value{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1;}
+.port-pnl{text-align:right;padding-bottom:3px;}
+.port-pnl-val{font-size:17px;font-weight:700;}
 .port-pnl-val.pos{color:var(--green);}
 .port-pnl-val.neg{color:var(--red);}
-.port-sub{font-size:11px;color:var(--text2);margin-top:2px;}
-.port-divider{height:1px;background:var(--border);margin:14px 0;}
-.port-stats{display:flex;gap:0;}
+.port-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+.port-divider{height:1px;background:var(--border);margin:16px 0 0;}
+.port-stats{display:flex;padding:12px 0 0;gap:0;}
 .port-stat{flex:1;text-align:center;}
 .port-stat:not(:last-child){border-right:1px solid var(--border);}
-.ps-val{font-size:15px;font-weight:700;}
-.ps-lbl{font-size:11px;color:var(--text2);margin-top:2px;}
+.ps-val{font-size:14px;font-weight:700;}
+.ps-lbl{font-size:10px;color:var(--text2);margin-top:2px;}
 
-/* ── WEEKLY SIGNAL BANNER ─────────────────────────────── */
-.week-banner{margin:12px 16px 0;background:linear-gradient(135deg,rgba(0,200,5,.12),rgba(0,200,5,.04));border:1px solid rgba(0,200,5,.25);border-radius:14px;padding:14px 16px;}
-.wb-row{display:flex;align-items:center;justify-content:space-between;}
-.wb-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:4px;}
-.wb-sub{font-size:12px;color:var(--text2);}
-.wb-cd{font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+/* ── WEEKLY SIGNAL STRIP ──────────────────────────────── */
+.week-strip{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-top:16px;}
+.ws-left{display:flex;align-items:center;gap:8px;}
+.ws-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
+.ws-label{font-size:12px;color:var(--text2);}
+.ws-cd{font-size:12px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums;}
 
 /* ── MARKET STATUS ────────────────────────────────────── */
 .mkt-row{display:flex;align-items:center;gap:6px;padding:10px 16px 0;font-size:12px;color:var(--text2);}
@@ -301,14 +301,12 @@ select.mf-input option{background:var(--s1);}
         </div>
       </div>
 
-      <div class="week-banner">
-        <div class="wb-row">
-          <div>
-            <div class="wb-title">Weekly Signal Window</div>
-            <div class="wb-sub">Every Monday at 12:00 PM · Execute all trades then</div>
-          </div>
-          <div class="wb-cd" id="cdVal">—</div>
+      <div class="week-strip">
+        <div class="ws-left">
+          <div class="ws-dot"></div>
+          <span class="ws-label">Next signal update</span>
         </div>
+        <span class="ws-cd" id="cdVal">—</span>
       </div>
 
       <div class="mkt-row"><div class="mkt-dot" id="mktDot"></div><span id="mktTxt">Checking market…</span></div>
@@ -558,7 +556,6 @@ function rowHTML(s,i,isCore) {
     <div class="si">
       <div class="si-t">${s.symbol}${coreChip}</div>
       <div class="si-n">${s.name}</div>
-      <div class="si-rec ${s.signal.toLowerCase()}">${s.action ? s.action.split('.')[0] : ''}</div>
     </div>
     <div class="spark">${mkSpark(s.sparkline,s.signal)}</div>
     <div class="badge ${s.signal.toLowerCase()}">${s.signal}</div>
