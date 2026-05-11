@@ -1,5 +1,5 @@
 const CACHE = 'tf-v1';
-const SHELL = ['/', '/index.html', '/manifest.json', '/App Icon.jpeg'];
+const SHELL = ['/T-Finance/', '/T-Finance/index.html', '/T-Finance/manifest.json', '/T-Finance/App Icon.jpeg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

@@ -2,7 +2,8 @@
   "name": "T-Finance",
   "short_name": "T-Finance",
   "description": "AI-powered stock signals dashboard",
-  "start_url": "/",
+  "start_url": "/T-Finance/",
+  "scope": "/T-Finance/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
@@ -12,7 +13,7 @@
       "src": "App Icon.jpeg",
       "sizes": "any",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "categories": ["finance"],
